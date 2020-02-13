@@ -48,7 +48,7 @@ done
 # create an associative array that maps the name of a feature to the name
 # of a gene.
 declare -A feature_gene_map
-generate_feature_gene_map() {
+populate_feature_gene_map() {
     local IFS=','
     while read feature gene rest
     do
@@ -190,7 +190,7 @@ EOF
 #     ExecutionOutputLink
 #         GroundedSchemaNode "scm: make-has-{heterozygous|homozygous}-SNP-predicate"
 #         GeneNode {2}
-feature_gene_def() {
+equivalence_feature_gene() {
     local pred=$1
     local gene=$2
     [[ $pred == *_h ]] && local zygous="heterozygous" || local zygous="homozygous"
