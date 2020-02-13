@@ -13,9 +13,9 @@ PRG_DIR="$(dirname "$PRG_PATH")"
 ####################
 # Program argument #
 ####################
-if [[ $# == 0 || $# -gt 4 ]]; then
-    echo "Usage: $0 MODEL_CSV_FILE PRED_NAME [-o OUTPUT_FILE]"
-    echo "Example: $0 chr10_moses.5x10.csv \"aging\" -o chr10_moses.5x10.scm"
+if [[ $# == 0 || $# -gt 6 ]]; then
+    echo "Usage: $0 MODEL_CSV_FILE PRED_NAME [-p FEATURE_GENE_MAP] [-o OUTPUT_FILE]"
+    echo "Example: $0 chr10_moses.5x10.csv \"aging\" -p feature2gene.csv -o chr10_moses.5x10.scm"
     exit 1
 fi
 
@@ -23,11 +23,14 @@ readonly MODEL_CSV_FILE="$1"
 readonly BASE_MODEL_CSV_FILE="$(basename "$MODEL_CSV_FILE")"
 readonly PRED_NAME="$2"
 OUTPUT_FILE="/dev/stdout"
+FEATURE_GENE_MAP=""
 
 shift 2
-while getopts "o:" opt; do
+while getopts "o:p:" opt; do
     case $opt in
-        o) OUTPUT_FILE="$OPTARG"
+        o) OUTPUT_FILE=$OPTARG
+            ;;
+        p) FEATURE_GENE_MAP=$OPTARG
             ;;
     esac
 done
@@ -35,6 +38,23 @@ done
 #############
 # Functions #
 #############
+
+# Given a CSV file with two columns:
+#
+# 1. name of a feature
+#
+# 2. name of a gene
+#
+# create an associative array that maps the name of a feature to the name
+# of a gene.
+declare -A feature_gene_map
+generate_feature_gene_map() {
+    local IFS=','
+    while read feature gene rest
+    do
+        feature_gene_map[$feature]=$gene
+    done < $1
+}
 
 # Given
 #
