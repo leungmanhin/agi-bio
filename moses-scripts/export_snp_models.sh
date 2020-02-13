@@ -156,3 +156,29 @@ implication_neg_pred_val_def() {
 EOF
 }
 
+# Given
+#
+# 1. a predicate name (i.e. the feature)
+#
+# 2. a gene name
+#
+# return a Scheme code defining the equivalence between the predicate
+# and its corresponding gene:
+#
+# EquivalenceLink <stv 1.0, 1.0>
+#     PredicateNode {1}
+#     ExecutionOutputLink
+#         GroundedSchemaNode "scm: make-has-{heterozygous|homozygous}-SNP-predicate"
+#         GeneNode {2}
+feature_gene_def() {
+    local pred="$1"
+    local gene="$2"
+    [[ $pred == *_h ]] && local zygous="heterozygous" || local zygous="homozygous"
+    cat <<EOF
+(EquivalenceLink (stv 1, 1)
+    (PredicateNode "$pred")
+    (ExecutionOutputLink
+        (GroundedSchemaNode "make-has-$zygous-SNP-predicate")
+        (GeneNode "$gene")))
+EOF
+}
