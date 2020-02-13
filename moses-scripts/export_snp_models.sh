@@ -52,11 +52,11 @@ done
 # ImplicationLink <{3}, {4}>
 #     PredicateNode {1}
 #     {2}
-implication_sensitivity_def() {
-    local pred="$1"
-    local model="$2"
-    local sensitivity="$3"
-    local count="$4"
+implication_sensitivity() {
+    local pred=$1
+    local model=$2
+    local sensitivity=$3
+    local count=$4
     cat <<EOF
 (ImplicationLink (stv $sensitivity, $count)
     (PredicateNode "$pred")
@@ -82,11 +82,11 @@ EOF
 #         PredicateNode {1}
 #     NotLink
 #         {2}
-implication_specificity_def() {
-    local pred="$1"
-    local model="$2"
-    local specificity="$3"
-    local count="$4"
+implication_specificity() {
+    local pred=$1
+    local model=$2
+    local specificity=$3
+    local count=$4
     cat <<EOF
 (ImplicationLink (stv $specificity, $count)
     (NotLink
@@ -102,7 +102,7 @@ EOF
 #
 # 2. a combo model
 #
-# 3. a precision value (positive predictive value)
+# 3. a precision value
 #
 # 4. a count
 #
@@ -112,11 +112,11 @@ EOF
 # ImplicationLink <{3}, {4}>
 #     {2}
 #     PredicateNode {1}
-implication_precision_def() {
-    local pred="$1"
-    local model="$2"
-    local precision="$3"
-    local count="$4"
+implication_precision() {
+    local pred=$1
+    local model=$2
+    local precision=$3
+    local count=$4
     cat <<EOF
 (ImplicationLink (stv $precision, $count)
     $model
@@ -142,11 +142,11 @@ EOF
 #         PredicateNode {1}
 #     NotLink
 #         {2}
-implication_neg_pred_val_def() {
-    local pred="$1"
-    local model="$2"
-    local npv="$3"
-    local count="$4"
+implication_neg_pred_val() {
+    local pred=$1
+    local model=$2
+    local npv=$3
+    local count=$4
     cat <<EOF
 (ImplicationLink (stv $npv, $count)
     (NotLink
@@ -171,8 +171,8 @@ EOF
 #         GroundedSchemaNode "scm: make-has-{heterozygous|homozygous}-SNP-predicate"
 #         GeneNode {2}
 feature_gene_def() {
-    local pred="$1"
-    local gene="$2"
+    local pred=$1
+    local gene=$2
     [[ $pred == *_h ]] && local zygous="heterozygous" || local zygous="homozygous"
     cat <<EOF
 (EquivalenceLink (stv 1, 1)
