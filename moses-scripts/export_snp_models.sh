@@ -140,6 +140,20 @@ populate_model_result_map() {
     done <<< $(tail -n +3 $1)
 }
 
+# Given a MOSES model like:
+#
+#     or($X1.1666251_G.A_h $X1.1666251_G.A)
+#
+# return a Scheme code representing the Atomese, like:
+#
+#     (Or (Predicate "$X1.1666251_G.A_h") (Predicate "$X1.1666251_G.A"))
+moses2atomese() {
+    echo $1 | sed -e 's/!/(NotLink /g' \
+                  -e 's/or(/(OrLink /g' \
+                  -e 's/and(/(AndLink /g' \
+                  -e 's/\(\$X[._ATCGh{0-9}]\+\)/(PredicateNode \1)/g'
+}
+
 # Given
 #
 # 1. a predicate name
@@ -193,10 +207,8 @@ implication_specificity() {
     local count=$4
     cat <<EOF
 (ImplicationLink (stv $specificity, $count)
-    (NotLink
-        (PredicateNode "$pred"))
-    (NotLink
-        $model))
+    (NotLink (PredicateNode "$pred"))
+    (NotLink $model))
 EOF
 }
 
@@ -253,10 +265,8 @@ implication_neg_pred_val() {
     local count=$4
     cat <<EOF
 (ImplicationLink (stv $npv, $count)
-    (NotLink
-        $model)
-    (NotLink
-        (PredicateNode "$pred")))
+    (NotLink $model)
+    (NotLink (PredicateNode "$pred")))
 EOF
 }
 
@@ -307,7 +317,7 @@ populate_model_result_map $RESULTS_FILE
 echo "Generating Atomese ..."
 while IFS=',' read model rest
 do
-    echo "Reading model: $model"
+    # echo "Reading model: $model"
     tp=${model_tp_map[$model]}
     fp=${model_fp_map["$model"]}
     tn=${model_tn_map["$model"]}
@@ -316,8 +326,9 @@ do
     n=$(($fp + $tn))
     m=$(($p + $n))
 
-    implication_sensitivity "$PRED_NAME" "$model" $(echo "$tp/$p" | bc -l) $p
-    implication_specificity "$PRED_NAME" "$model" $(echo "$tn/$n" | bc -l) $n
-    implication_precision "$PRED_NAME" "$model" $(echo "$tp/($tp+$fp)" | bc -l) $(echo "$tp+$fp" | bc -l)
-    implication_neg_pred_val "$PRED_NAME" "$model" $(echo "$tn/($tn+$fn)" | bc -l) $(echo "$tn+$fn" | bc -l)
+    moses_model=$(moses2atomese "$model")
+    implication_sensitivity "$PRED_NAME" "$moses_model" $(echo "$tp/$p" | bc -l) $p
+    implication_specificity "$PRED_NAME" "$moses_model" $(echo "$tn/$n" | bc -l) $n
+    implication_precision "$PRED_NAME" "$moses_model" $(echo "$tp/($tp+$fp)" | bc -l) $(echo "$tp+$fp" | bc -l)
+    implication_neg_pred_val "$PRED_NAME" "$moses_model" $(echo "$tn/($tn+$fn)" | bc -l) $(echo "$tn+$fn" | bc -l)
 done <<< $(tail -n +2 $MODEL_CSV_FILE)
