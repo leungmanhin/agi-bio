@@ -13,24 +13,29 @@ PRG_DIR="$(dirname "$PRG_PATH")"
 ####################
 # Program argument #
 ####################
-if [[ $# == 0 || $# -gt 6 ]]; then
-    echo "Usage: $0 MODEL_CSV_FILE PRED_NAME [-p FEATURE_GENE_MAP] [-o OUTPUT_FILE]"
-    echo "Example: $0 chr10_moses.5x10.csv \"aging\" -p feature2gene.csv -o chr10_moses.5x10.scm"
+if [[ $# == 0 || $# -gt 10 ]]; then
+    echo "Usage: $0 MODEL_CSV_FILE PRED_NAME [-m FEATURE_GENE_MAP] [-o OUTPUT_FILE] [-r RESULTS_FILE] [-s SCORES_FILE]"
+    echo "Example: $0 moses.csv \"longevity\" -m feature2gene.csv -o moses.scm -r results.csv -s scores.csv"
     exit 1
 fi
 
 readonly MODEL_CSV_FILE="$1"
-readonly BASE_MODEL_CSV_FILE="$(basename "$MODEL_CSV_FILE")"
 readonly PRED_NAME="$2"
-OUTPUT_FILE="/dev/stdout"
 FEATURE_GENE_MAP=""
+OUTPUT_FILE="/dev/stdout"
+RESULTS_FILE=""
+SCORES_FILE=""
 
 shift 2
-while getopts "o:p:" opt; do
+while getopts "m:o:r:s:" opt; do
     case $opt in
+        m) FEATURE_GENE_MAP=$OPTARG
+            ;;
         o) OUTPUT_FILE=$OPTARG
             ;;
-        p) FEATURE_GENE_MAP=$OPTARG
+        r) RESULTS_FILE=$OPTARG
+            ;;
+        s) SCORES_FILE=$OPTARG
             ;;
     esac
 done
@@ -49,11 +54,25 @@ done
 # of a gene.
 declare -A feature_gene_map
 populate_feature_gene_map() {
-    local IFS=','
-    while read feature gene rest
+    while IFS=',' read feature gene rest
     do
         feature_gene_map[$feature]=$gene
     done < $1
+}
+
+# Given a CSV file containing the scores like accuracy, precision etc for
+# each MOSES model, create an associative array that maps the model with
+# all of the scores provided.
+declare -A model_scores_map
+populate_model_score_map() {
+    # Get all the columns from the first line
+    IFS=',' read -ra score_columns <<< $(head -n 1 $1)
+
+    # Read the scores from the rest of the lines
+    while IFS=',' read model scores
+    do
+        model_scores_map[$model]=$scores
+    done <<< $(tail -n +2 $1)
 }
 
 # Given
@@ -202,3 +221,13 @@ equivalence_feature_gene() {
         (GeneNode "$gene")))
 EOF
 }
+
+########
+# Main #
+########
+
+# Get the mapping between the features and the genes
+populate_feature_gene_map $FEATURE_GENE_MAP
+
+# Get and calculate the numbers that we need
+populate_model_score_map $SCORES_FILE
