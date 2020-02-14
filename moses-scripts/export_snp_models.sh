@@ -65,14 +65,79 @@ populate_feature_gene_map() {
 # all of the scores provided.
 declare -A model_scores_map
 populate_model_score_map() {
-    # Get all the columns from the first line
+    # Get all the columns from the first row
     IFS=',' read -ra score_columns <<< $(head -n 1 $1)
 
-    # Read the scores from the rest of the lines
+    # Read the scores from the rest of the rows
     while IFS=',' read model scores
     do
         model_scores_map[$model]=$scores
     done <<< $(tail -n +2 $1)
+}
+
+# Given a CSV file containing the results for each MOSES models, in the
+# format of:
+#
+# - Row 1 being the name of the columns
+#
+# - Row 2 being the case -- the actual results
+#
+# - Rest of the rows being the results
+#
+# create associative arrays that maps the the model with its corresponding
+# true positive, false positive, true negative, and false negative values.
+declare -A model_tp_map
+declare -A model_fp_map
+declare -A model_tn_map
+declare -A model_fn_map
+populate_model_result_map() {
+    # Get the actual results from the 2nd row of the file
+    local actual_results
+    while IFS=',' read first_col results
+    do
+        IFS=',' read -ra actual_results <<< $results
+    done <<< $(sed -n 2p $1)
+
+    # Read the results from the rest of the rows, and get the
+    # TP, FP, TN, and FN values
+    while IFS=',' read model results
+    do
+        local tp=0
+        local fp=0
+        local tn=0
+        local fn=0
+
+        IFS=',' read -ra model_results <<< $results
+
+        for i in "${!model_results[@]}"
+        do
+            if [ ${actual_results[$i]} == "1" ] && [ ${model_results[$i]} == "1" ]
+            then
+                ((++tp))
+            fi
+
+            if [ ${actual_results[$i]} == "0" ] && [ ${model_results[$i]} == "1" ]
+            then
+                ((++fp))
+            fi
+
+            if [ ${actual_results[$i]} == "0" ] && [ ${model_results[$i]} == "0" ]
+            then
+                ((++tn))
+            fi
+
+            if [ ${actual_results[$i]} == "1" ] && [ ${model_results[$i]} == "0" ]
+            then
+                ((++fn))
+            fi
+        done
+
+        model_tp_map[$model]=$tp
+        model_fp_map[$model]=$fp
+        model_tn_map[$model]=$tn
+        model_fn_map[$model]=$fn
+
+    done <<< $(tail -n +3 $1)
 }
 
 # Given
@@ -227,7 +292,13 @@ EOF
 ########
 
 # Get the mapping between the features and the genes
+echo "Reading $FEATURE_GENE_MAP ..."
 populate_feature_gene_map $FEATURE_GENE_MAP
 
-# Get and calculate the numbers that we need
+# Get the numbers that we need
+echo "Reading $SCORES_FILE ..."
 populate_model_score_map $SCORES_FILE
+
+# Get the raw results, and get the numbers needed for building the confusion matrix
+echo "Reading $RESULTS_FILE ..."
+populate_model_result_map $RESULTS_FILE
