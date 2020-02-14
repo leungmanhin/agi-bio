@@ -302,3 +302,22 @@ populate_model_score_map $SCORES_FILE
 # Get the raw results, and get the numbers needed for building the confusion matrix
 echo "Reading $RESULTS_FILE ..."
 populate_model_result_map $RESULTS_FILE
+
+# Generate Atomese in Scheme
+echo "Generating Atomese ..."
+while IFS=',' read model rest
+do
+    echo "Reading model: $model"
+    tp=${model_tp_map[$model]}
+    fp=${model_fp_map["$model"]}
+    tn=${model_tn_map["$model"]}
+    fn=${model_fn_map["$model"]}
+    p=$(($tp + $fn))
+    n=$(($fp + $tn))
+    m=$(($p + $n))
+
+    implication_sensitivity "$PRED_NAME" "$model" $(echo "$tp/$p" | bc -l) $p
+    implication_specificity "$PRED_NAME" "$model" $(echo "$tn/$n" | bc -l) $n
+    implication_precision "$PRED_NAME" "$model" $(echo "$tp/($tp+$fp)" | bc -l) $(echo "$tp+$fp" | bc -l)
+    implication_neg_pred_val "$PRED_NAME" "$model" $(echo "$tn/($tn+$fn)" | bc -l) $(echo "$tn+$fn" | bc -l)
+done <<< $(tail -n +2 $MODEL_CSV_FILE)
