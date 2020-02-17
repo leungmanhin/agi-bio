@@ -319,9 +319,9 @@ while IFS=',' read model rest
 do
     # echo "Reading model: $model"
     tp=${model_tp_map[$model]}
-    fp=${model_fp_map["$model"]}
-    tn=${model_tn_map["$model"]}
-    fn=${model_fn_map["$model"]}
+    fp=${model_fp_map[$model]}
+    tn=${model_tn_map[$model]}
+    fn=${model_fn_map[$model]}
     p=$(($tp + $fn))
     n=$(($fp + $tn))
     m=$(($p + $n))
@@ -331,4 +331,25 @@ do
     implication_specificity "$PRED_NAME" "$moses_model" $(echo "$tn/$n" | bc -l) $n
     implication_precision "$PRED_NAME" "$moses_model" $(echo "$tp/($tp+$fp)" | bc -l) $(echo "$tp+$fp" | bc -l)
     implication_neg_pred_val "$PRED_NAME" "$moses_model" $(echo "$tn/($tn+$fn)" | bc -l) $(echo "$tn+$fn" | bc -l)
+
+    # The format is, e.g. $X1.1666251_G.A
+    for feature in $(echo $model | grep -o "\$X[._ATCGh0-9]\+")
+    do
+        # Some pre-processing to make sure the format is consistant with the
+        # feature-gene mapping that we got from the file, here it tries to
+        # turn, for example, "$X1.1666251_G.A_h" into "1:1666251_G/A"
+        ## 1. Remove the "$X"
+        ## 2. Turn the first "." into a ":"
+        ## 3. Turn the last "." into a "/"
+        ## 4. Remove "_h" at the end of the feature, if any
+        feature_reformatted=$(echo $feature | sed -e "s/\$X//" -e "s/\./:/" -e "s/\./\//" -e "s/_h//")
+
+        # There may be a version number appended at the end of the name of a gene,
+        # for example, the ".8" as in "RP1-283E3.8", which is not necessary for our
+        # purpose, so can and should be removed
+        gene=$(echo "${feature_gene_map[$feature_reformatted]}" | sed -r "s/\.[0-9]+//")
+
+        # Finally, generate the EquivalenceLink Atomese
+        equivalence_feature_gene "$feature" "$gene"
+    done
 done <<< $(tail -n +2 $MODEL_CSV_FILE)
