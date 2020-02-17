@@ -420,11 +420,16 @@ do
         # Some pre-processing to make sure the format is consistant with the
         # feature-gene mapping that we got from the file, here it tries to
         # turn, for example, "$X1.1666251_G.A_h" into "1:1666251_G/A"
-        ## 1. Remove the "$X"
-        ## 2. Turn the first "." into a ":"
-        ## 3. Turn the last "." into a "/"
-        ## 4. Remove "_h" at the end of the feature, if any
-        feature_reformatted=$(echo $feature | sed -e "s/\$X//" -e "s/\./:/" -e "s/\./\//" -e "s/_h//")
+        ## 1. Remove the "$", if any
+        ## 2. Remove "X" and the digits following it, if any
+        ## 3. Turn the first "." into a ":", if any
+        ## 4. Turn the last "." into a "/", if any
+        ## 5. Remove "_h" at the end of the feature, if any
+        feature_reformatted=$(echo $feature | sed -e 's/\$//' \
+                                                  -e "s/X\([0-9]\+\)/\1/" \
+                                                  -e "s/\./:/" \
+                                                  -e "s/\./\//" \
+                                                  -e "s/_h//")
 
         # There may be a version number appended at the end of the name of a gene,
         # for example, the ".8" as in "RP1-283E3.8", which is not necessary for our
