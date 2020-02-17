@@ -144,11 +144,17 @@ populate_model_result_map() {
 # return a Scheme code representing the Atomese, like:
 #
 #     (Or (Predicate "$X1.1666251_G.A_h") (Predicate "$X1.1666251_G.A"))
+#
+# with the corresponding TV assigned
 moses2atomese() {
-    echo $1 | sed -e 's/!/(NotLink /g' \
-                  -e 's/or(/(OrLink /g' \
-                  -e 's/and(/(AndLink /g' \
-                  -e 's/\(\$X[._ATCGh{0-9}]\+\)/(PredicateNode \"\1\")/g'
+    links=$(echo $1 | sed -e 's/!/(NotLink /g' \
+                          -e 's/or(/(OrLink /g' \
+                          -e 's/and(/(AndLink /g' \
+                          -e 's/\(\$X[._ATCGh{0-9}]\+\)/(PredicateNode \"\1\")/g')
+
+    [[ $links == \(PredicateNode* ]] && \
+        echo $links | sed -e "s/)/ (stv $2, $3))/" || \
+        echo $links | sed -e "s/ (/ (stv $2, $3) (/"
 }
 
 # Given
@@ -157,15 +163,19 @@ moses2atomese() {
 #
 # 2. a combo model
 #
-# 3. a sensitivity value
+# 3. a sensitivity value for the predicate
 #
-# 4. a count
+# 4. a count for the predicate
+#
+# 5. a TV strength for the predicate
+#
+# 6. a count for the predicate
 #
 # return a Scheme code defining the implication between the predicate
 # and the model:
 #
-# ImplicationLink <{3}, {4}>
-#     PredicateNode {1}
+# ImplicationLink (stv {3}, {4})
+#     PredicateNode {1} (stv {5}, {6})
 #     {2}
 implication_sensitivity() {
     local pred=$1
@@ -174,7 +184,7 @@ implication_sensitivity() {
     local count=$4
     cat <<EOF
 (ImplicationLink (stv $sensitivity, $count)
-    (PredicateNode "$pred")
+    (PredicateNode "$pred" (stv $5, $6))
     $model)
 EOF
 }
@@ -185,17 +195,29 @@ EOF
 #
 # 2. a combo model
 #
-# 3. a specificity value
+# 3. a specificity value for the implication
 #
-# 4. a count
+# 4. a count for the implication
+#
+# 5. a TV strength for the predicate
+#
+# 6. a count for the predicate
+#
+# 7. a TV strength for the negation of the predicate
+#
+# 8. a count for the negation of the predicate
+#
+# 9. a TV strength for the negation of the model
+#
+# 10. a count for the negation of the model
 #
 # return a Scheme code defining the implication between the predicate
 # and the model:
 #
-# ImplicationLink <{3}, {4}>
-#     NotLink
-#         PredicateNode {1}
-#     NotLink
+# ImplicationLink (stv {3}, {4})
+#     NotLink (stv {7}, {8})
+#         PredicateNode {1} (stv {5}, {6})
+#     NotLink (stv {9}, {10})
 #         {2}
 implication_specificity() {
     local pred=$1
@@ -204,8 +226,10 @@ implication_specificity() {
     local count=$4
     cat <<EOF
 (ImplicationLink (stv $specificity, $count)
-    (NotLink (PredicateNode "$pred"))
-    (NotLink $model))
+    (NotLink (stv $7, $8)
+        (PredicateNode "$pred" (stv $5, $6))
+    (NotLink (stv $9, ${10})
+        $model))
 EOF
 }
 
@@ -215,16 +239,20 @@ EOF
 #
 # 2. a combo model
 #
-# 3. a precision value
+# 3. a precision value for the implication
 #
-# 4. a count
+# 4. a count for the implication
+#
+# 5. a TV strength for the predicate
+#
+# 6. a count for the predicate
 #
 # return a Scheme code defining the implication between the predicate
 # and the model:
 #
-# ImplicationLink <{3}, {4}>
+# ImplicationLink (stv {3}, {4})
 #     {2}
-#     PredicateNode {1}
+#     PredicateNode {1} (stv {5}, {6})
 implication_precision() {
     local pred=$1
     local model=$2
@@ -233,7 +261,7 @@ implication_precision() {
     cat <<EOF
 (ImplicationLink (stv $precision, $count)
     $model
-    (PredicateNode "$pred"))
+    (PredicateNode "$pred" (stv $5, $6))
 EOF
 }
 
@@ -243,17 +271,29 @@ EOF
 #
 # 2. a combo model
 #
-# 3. a negative predictive value
+# 3. a negative predictive value for the implication
 #
-# 4. a count
+# 4. a count for the implication
+#
+# 5. a TV strength for the predicate
+#
+# 6. a count for the predicate
+#
+# 7. a TV strength for the negation of the predicate
+#
+# 8. a count for the negation of the predicate
+#
+# 9. a TV strength for the negation of the model
+#
+# 10. a count for the negation of the model
 #
 # return a Scheme code defining the implication between the predicate
 # and the model:
 #
-# ImplicationLink <{3}, {4}>
-#     NotLink
-#         PredicateNode {1}
-#     NotLink
+# ImplicationLink (stv {3}, {4})
+#     NotLink (stv {9}, {10})
+#         PredicateNode {1} (stv {5}, {6})
+#     NotLink (stv {7}, {8})
 #         {2}
 implication_neg_pred_val() {
     local pred=$1
@@ -262,8 +302,10 @@ implication_neg_pred_val() {
     local count=$4
     cat <<EOF
 (ImplicationLink (stv $npv, $count)
-    (NotLink $model)
-    (NotLink (PredicateNode "$pred")))
+    (NotLink (stv $9, ${10})
+        $model)
+    (NotLink (stv $7, $8)
+        (PredicateNode "$pred" (stv $5, $6))))
 EOF
 }
 
@@ -273,11 +315,15 @@ EOF
 #
 # 2. a gene name
 #
+# 3. a TV strength for the predicate
+#
+# 4. a count for the predicate
+#
 # return a Scheme code defining the equivalence between the predicate
 # and its corresponding gene:
 #
-# EquivalenceLink <stv 1.0, 1.0>
-#     PredicateNode {1}
+# EquivalenceLink (stv 1.0, 1.0)
+#     PredicateNode {1} (stv {3}, {4})
 #     ExecutionOutputLink
 #         GroundedSchemaNode "scm: make-has-{heterozygous|homozygous}-SNP-predicate"
 #         GeneNode {2}
@@ -322,12 +368,51 @@ do
     p=$(($tp + $fn))
     n=$(($fp + $tn))
     m=$(($p + $n))
+    pred_tv_strength=$(echo "$p/$m" | bc -l)
+    pred_tv_count=$m
 
-    moses_model=$(moses2atomese "$model")
-    implication_sensitivity "$PRED_NAME" "$moses_model" $(echo "$tp/$p" | bc -l) $p
-    implication_specificity "$PRED_NAME" "$moses_model" $(echo "$tn/$n" | bc -l) $n
-    implication_precision "$PRED_NAME" "$moses_model" $(echo "$tp/($tp+$fp)" | bc -l) $(echo "$tp+$fp" | bc -l)
-    implication_neg_pred_val "$PRED_NAME" "$moses_model" $(echo "$tn/($tn+$fn)" | bc -l) $(echo "$tn+$fn" | bc -l)
+    # Then, generate the MOSES model and assign TV to it
+    moses_model=$(moses2atomese "$model" $(echo "($tp+$fp)/$m" | bc -l) $m)
+
+    implication_sensitivity \
+        "$PRED_NAME" \
+        "$moses_model" \
+        $(echo "$tp/$p" | bc -l) \
+        $p \
+        $pred_tv_strength \
+        $pred_tv_count
+
+    implication_specificity \
+        "$PRED_NAME" \
+        "$moses_model" \
+        $(echo "$tn/$n" | bc -l) \
+        $n \
+        $pred_tv_strength \
+        $pred_tv_count \
+        $(echo "$n/$m" | bc -l) \
+        $m \
+        $(echo "($fn+$tn)/$m" | bc -l) \
+        $m
+
+    implication_precision \
+        "$PRED_NAME" \
+        "$moses_model" \
+        $(echo "$tp/($tp+$fp)" | bc -l) \
+        $(echo "$tp+$fp" | bc -l) \
+        $pred_tv_strength \
+        $pred_tv_count
+
+    implication_neg_pred_val \
+        "$PRED_NAME" \
+        "$moses_model" \
+        $(echo "$tn/($tn+$fn)" | bc -l) \
+        $(echo "$tn+$fn" | bc -l) \
+        $pred_tv_strength \
+        $pred_tv_count \
+        $(echo "$n/$m" | bc -l) \
+        $m \
+        $(echo "($fn+$tn)/$m" | bc -l) \
+        $m
 
     # The format is, e.g. $X1.1666251_G.A
     for feature in $(echo $model | grep -o "\$X[._ATCGh0-9]\+")
