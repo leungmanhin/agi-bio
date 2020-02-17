@@ -13,9 +13,9 @@ PRG_DIR="$(dirname "$PRG_PATH")"
 ####################
 # Program argument #
 ####################
-if [[ $# == 0 || $# -gt 10 ]]; then
-    echo "Usage: $0 MODEL_CSV_FILE PRED_NAME [-m FEATURE_GENE_MAP] [-o OUTPUT_FILE] [-r RESULTS_FILE] [-s SCORES_FILE]"
-    echo "Example: $0 moses.csv \"longevity\" -m feature2gene.csv -o moses.scm -r results.csv -s scores.csv"
+if [[ $# == 0 || $# -gt 8 ]]; then
+    echo "Usage: $0 MODEL_CSV_FILE PRED_NAME [-m FEATURE_GENE_MAP] [-o OUTPUT_FILE] [-r RESULTS_FILE]"
+    echo "Example: $0 moses_scores.csv \"longevity\" -m feature2gene.csv -o moses.scm -r raw_results.csv"
     exit 1
 fi
 
@@ -24,18 +24,15 @@ readonly PRED_NAME="$2"
 FEATURE_GENE_MAP=""
 OUTPUT_FILE="/dev/stdout"
 RESULTS_FILE=""
-SCORES_FILE=""
 
 shift 2
-while getopts "m:o:r:s:" opt; do
+while getopts "m:o:r:" opt; do
     case $opt in
         m) FEATURE_GENE_MAP=$OPTARG
             ;;
         o) OUTPUT_FILE=$OPTARG
             ;;
         r) RESULTS_FILE=$OPTARG
-            ;;
-        s) SCORES_FILE=$OPTARG
             ;;
     esac
 done
@@ -305,9 +302,9 @@ EOF
 echo "Reading $FEATURE_GENE_MAP ..."
 populate_feature_gene_map $FEATURE_GENE_MAP
 
-# Get the numbers that we need
-echo "Reading $SCORES_FILE ..."
-populate_model_score_map $SCORES_FILE
+# Get the models and their scores
+echo "Reading $MODEL_CSV_FILE ..."
+populate_model_score_map $MODEL_CSV_FILE
 
 # Get the raw results, and get the numbers needed for building the confusion matrix
 echo "Reading $RESULTS_FILE ..."
