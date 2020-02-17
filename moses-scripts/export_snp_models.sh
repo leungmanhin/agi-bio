@@ -151,7 +151,7 @@ moses2atomese() {
     echo $1 | sed -e 's/!/(NotLink /g' \
                   -e 's/or(/(OrLink /g' \
                   -e 's/and(/(AndLink /g' \
-                  -e 's/\(\$X[._ATCGh{0-9}]\+\)/(PredicateNode \1)/g'
+                  -e 's/\(\$X[._ATCGh{0-9}]\+\)/(PredicateNode \"\1\")/g'
 }
 
 # Given
